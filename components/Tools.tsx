@@ -72,20 +72,21 @@ export const Tools: React.FC<ToolsProps> = ({
 
   // -- Load Weather on Mount --
   useEffect(() => {
-    if (!isGuest && activeTab === 'daily' && !weather) {
-        // Use Open-Meteo (Free, No Key)
-        navigator.geolocation.getCurrentPosition(async (pos) => {
+    if (!isGuest && activeTab === 'daily') {
+        const fetchWeather = async (latitude: number, longitude: number) => {
             try {
-                const { latitude, longitude } = pos.coords;
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`);
                 const data = await res.json();
                 
                 // Map WMO codes to description
                 const code = data.current_weather.weathercode;
                 let desc = "晴朗";
-                if (code > 3) desc = "多雲";
-                if (code > 50) desc = "有雨";
-                if (code > 80) desc = "雷雨";
+                if (code === 1 || code === 2 || code === 3) desc = "多雲時晴";
+                if (code === 45 || code === 48) desc = "有霧";
+                if (code >= 51 && code <= 67) desc = "有雨";
+                if (code >= 71 && code <= 77) desc = "有雪";
+                if (code >= 80 && code <= 82) desc = "陣雨";
+                if (code >= 95) desc = "雷雨";
 
                 setWeather({
                     temp: data.current_weather.temperature,
@@ -94,11 +95,21 @@ export const Tools: React.FC<ToolsProps> = ({
                 });
             } catch (e) {
                 console.error("Weather fetch failed", e);
+                // Fallback to offline mock if API fails completely
                 setWeather({ temp: 25, code: 0, desc: "晴朗 (預設)" });
             }
-        }, () => {
-             setWeather({ temp: 28, code: 1, desc: "晴時多雲 (預設)" });
-        });
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                fetchWeather(pos.coords.latitude, pos.coords.longitude);
+            }, 
+            (err) => {
+                console.warn("Geolocation denied, using Taipei default", err);
+                // Permission denied or error: Default to Taipei City coordinates for "real" data fallback
+                fetchWeather(25.0330, 121.5654);
+            }
+        );
     }
   }, [isGuest, activeTab]);
 
