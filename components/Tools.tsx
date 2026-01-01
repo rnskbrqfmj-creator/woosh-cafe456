@@ -97,7 +97,7 @@ export const Tools: React.FC<ToolsProps> = ({
             } catch (e) {
                 console.error("Weather fetch failed", e);
                 // Fallback to offline mock if API fails completely
-                setWeather({ temp: 25, code: 0, desc: "晴朗 (預設)" });
+                setWeather({ temp: 24, code: 0, desc: "晴朗 (預設)" });
             }
         };
 
@@ -106,9 +106,9 @@ export const Tools: React.FC<ToolsProps> = ({
                 fetchWeather(pos.coords.latitude, pos.coords.longitude);
             }, 
             (err) => {
-                console.warn("Geolocation denied, using Taipei default", err);
-                // Permission denied or error: Default to Taipei City coordinates for "real" data fallback
-                fetchWeather(25.0330, 121.5654);
+                console.warn("Geolocation denied, using Yilan default", err);
+                // Permission denied or error: Default to Yilan City coordinates (Woosh Cafe Location)
+                fetchWeather(24.7570, 121.7530);
             }
         );
     }
@@ -244,7 +244,7 @@ export const Tools: React.FC<ToolsProps> = ({
   // -- GUEST VIEW: MENU --
   if (isGuest && activeTab === 'menu') {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-12 animate-fade-in pb-24">
+      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-12 animate-fade-in pb-24">
         <div className="text-center space-y-4 mb-10">
           <h2 className="text-3xl font-serif font-bold text-stone-800">WOOSH CAFE</h2>
           <p className="text-stone-500 italic">讓時間慢下來的咖啡角落</p>
@@ -365,7 +365,7 @@ export const Tools: React.FC<ToolsProps> = ({
         }));
 
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h2 className="text-2xl font-bold text-[#78350f]">菜單獲利分析</h2>
             <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
@@ -400,7 +400,7 @@ export const Tools: React.FC<ToolsProps> = ({
            </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#78350f]/10 h-[500px]">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#78350f]/10 h-[300px] md:h-[500px]">
             <h3 className="font-bold text-[#78350f] mb-4">{selectedCategory}：售價 vs 成本結構</h3>
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
@@ -427,7 +427,7 @@ export const Tools: React.FC<ToolsProps> = ({
       const pendingOrders = orders.filter(o => o.status === 'Pending');
 
       return (
-          <div className="p-6 space-y-8">
+          <div className="p-4 md:p-6 space-y-8">
               <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h2 className="text-2xl font-bold text-[#78350f] mb-2 flex items-center gap-2">
@@ -442,8 +442,8 @@ export const Tools: React.FC<ToolsProps> = ({
                     </p>
                   </div>
                   
-                  {/* Real Weather Widget */}
-                  <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-[#78350f]/10 flex items-center gap-4">
+                  {/* Real Weather Widget (Yilan) */}
+                  <div className="w-full md:w-auto bg-white px-6 py-3 rounded-2xl shadow-sm border border-[#78350f]/10 flex items-center justify-between md:justify-start gap-4">
                       {weather ? (
                           <>
                              <div className="text-4xl">
@@ -451,7 +451,9 @@ export const Tools: React.FC<ToolsProps> = ({
                              </div>
                              <div>
                                  <div className="text-xl font-bold text-gray-800">{weather.temp}°C</div>
-                                 <div className="text-xs text-gray-500">{weather.desc}</div>
+                                 <div className="text-xs text-gray-500 flex items-center gap-1">
+                                    宜蘭 • {weather.desc}
+                                 </div>
                              </div>
                           </>
                       ) : (
@@ -598,12 +600,12 @@ export const Tools: React.FC<ToolsProps> = ({
       };
 
       return (
-          <div className="p-6 space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="p-4 md:p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2">
                       <Package /> 庫存管理
                   </h2>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                       <label className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-50 text-sm">
                           <Upload size={16} />
                           匯入 CSV
@@ -699,8 +701,8 @@ export const Tools: React.FC<ToolsProps> = ({
       const totalRevenue = 28450 + orders.reduce((acc, curr) => acc + curr.total, 0);
       
       return (
-          <div className="p-6 space-y-6">
-               <div className="flex justify-between items-center">
+          <div className="p-4 md:p-6 space-y-6">
+               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2">
                       <DollarSign /> 營收儀表板
                   </h2>
@@ -773,10 +775,10 @@ export const Tools: React.FC<ToolsProps> = ({
           { name: '無紙化交易', A: 50, fullMark: 100 },
       ];
       return (
-          <div className="p-6 space-y-6">
+          <div className="p-4 md:p-6 space-y-6">
               <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Leaf /> ESG 永續指標</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[400px] flex flex-col items-center justify-center">
+                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[300px] md:h-[400px] flex flex-col items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                           <RadarChart cx="50%" cy="50%" outerRadius="80%" data={esgData}>
                               <PolarGrid />
@@ -805,8 +807,10 @@ export const Tools: React.FC<ToolsProps> = ({
   // -- MANAGER VIEW: SOCIAL MEDIA --
   if (!isGuest && activeTab === 'social') {
       return (
-          <div className="p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Camera /> 社群小編</h2>
+          <div className="p-4 md:p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                 <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Camera /> 社群小編</h2>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Draft Area */}
@@ -856,8 +860,8 @@ export const Tools: React.FC<ToolsProps> = ({
       };
 
       return (
-          <div className="p-6 space-y-6">
-              <div className="flex justify-between items-center">
+          <div className="p-4 md:p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Utensils /> 新品開發看板</h2>
                   <button 
                     onClick={() => setShowAddIdea(true)}
@@ -894,7 +898,7 @@ export const Tools: React.FC<ToolsProps> = ({
               {/* Add Idea Modal */}
               {showAddIdea && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                           <button onClick={() => setShowAddIdea(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
                           <h3 className="text-xl font-bold mb-4 text-[#78350f]">新增新品想法</h3>
                           <div className="space-y-4">
@@ -934,10 +938,10 @@ export const Tools: React.FC<ToolsProps> = ({
       ];
 
       return (
-          <div className="p-6 space-y-6">
+          <div className="p-4 md:p-6 space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                        <button 
                         onClick={() => setShowAddFeedback(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-[#b45309]/20 text-[#b45309] rounded-lg hover:bg-[#b45309]/5 text-sm"
@@ -956,7 +960,7 @@ export const Tools: React.FC<ToolsProps> = ({
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[300px] flex items-center justify-center">
+                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[250px] md:h-[300px] flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                               <Pie data={data} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -995,7 +999,7 @@ export const Tools: React.FC<ToolsProps> = ({
               {/* Add Feedback Modal */}
               {showAddFeedback && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                           <button onClick={() => setShowAddFeedback(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
                           <h3 className="text-xl font-bold mb-4 text-[#78350f]">手動新增評論</h3>
                           <div className="space-y-4">
@@ -1038,8 +1042,8 @@ export const Tools: React.FC<ToolsProps> = ({
   // -- MANAGER VIEW: KPI --
   if (!isGuest && activeTab === 'kpi') {
       return (
-          <div className="p-6 space-y-6">
-              <div className="flex justify-between items-center">
+          <div className="p-4 md:p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Target /> 年度目標追蹤</h2>
                   <button 
                     onClick={() => setShowAddGoal(true)}
@@ -1078,7 +1082,7 @@ export const Tools: React.FC<ToolsProps> = ({
                {/* Add Goal Modal */}
                {showAddGoal && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
                           <button onClick={() => setShowAddGoal(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
                           <h3 className="text-xl font-bold mb-4 text-[#78350f]">設定年度目標</h3>
                           <div className="space-y-4">

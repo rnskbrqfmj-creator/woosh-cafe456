@@ -19,7 +19,7 @@ const App: React.FC = () => {
   
   // Inventory state
   const [inventory, setInventory] = useState<InventoryItem[]>([
-      { id: '1', name: "燕麥奶 (Oatside)", quantity: 2, unit: "瓶", status: "Critical", lastUpdated: "2023-10-24" },
+      { id: '1', name: "燕麥拿鐵 (Oatside)", quantity: 2, unit: "瓶", status: "Critical", lastUpdated: "2023-10-24" },
       { id: '2', name: "耶加雪菲 咖啡豆", quantity: 0.5, unit: "kg", status: "Warning", lastUpdated: "2023-10-23" },
       { id: '3', name: "外帶紙杯 (12oz)", quantity: 1, unit: "條", status: "Critical", lastUpdated: "2023-10-24" },
       { id: '4', name: "光泉鮮乳", quantity: 12, unit: "瓶", status: "Normal", lastUpdated: "2023-10-24" },
@@ -182,8 +182,8 @@ const App: React.FC = () => {
            </div>
         </header>
 
-        {/* Content Scrollable Area */}
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        {/* Content Scrollable Area - Added padding bottom for mobile nav */}
+        <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
            <Tools 
                 activeTab={activeTab} 
                 isGuest={isGuest} 
@@ -203,7 +203,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Mobile Bottom Navigation (Fixed) */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex p-2 z-30 pb-safe overflow-x-auto no-scrollbar ${
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex p-2 z-30 overflow-x-auto ${
             isGuest ? 'border-stone-200' : 'border-[#78350f]/10'
         }`}>
           {visibleTabs.map((tab) => (
@@ -212,7 +212,7 @@ const App: React.FC = () => {
                onClick={() => setActiveTab(tab.id)}
                className={`flex flex-col items-center p-2 min-w-[70px] rounded-lg transition-colors shrink-0 ${
                  activeTab === tab.id 
-                    ? isGuest ? 'text-stone-800' : 'text-[#3f6212]' 
+                    ? isGuest ? 'text-stone-800 bg-stone-100' : 'text-[#3f6212] bg-[#ecfccb]/30' 
                     : 'text-gray-400'
                }`}
              >
@@ -220,6 +220,8 @@ const App: React.FC = () => {
                <span className="text-[10px] mt-1 whitespace-nowrap">{tab.label}</span>
              </button>
           ))}
+          {/* Spacer to ensure last item is clickable */}
+          <div className="min-w-[10px] shrink-0"></div>
         </nav>
       </main>
 
