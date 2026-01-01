@@ -8,7 +8,7 @@ import {
 import { 
     Package, TrendingUp, AlertCircle, DollarSign, Leaf, Users, 
     Cloud, CloudRain, CloudSun, Upload, Download, Plus, Trash2, ShoppingCart, CheckCircle, Heart,
-    Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send
+    Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send, RefreshCw, X, Loader2
 } from './icons';
 
 interface ToolsProps {
@@ -57,6 +57,18 @@ export const Tools: React.FC<ToolsProps> = ({
 
   // -- Weather State --
   const [weather, setWeather] = useState<{temp: number, code: number, desc: string} | null>(null);
+
+  // -- Modal States for Manual Inputs --
+  const [showAddIdea, setShowAddIdea] = useState(false);
+  const [newIdea, setNewIdea] = useState({ name: '', notes: '' });
+
+  const [showAddFeedback, setShowAddFeedback] = useState(false);
+  const [newFeedback, setNewFeedback] = useState({ customer: '', rating: 5, comment: '' });
+  const [isSyncingReviews, setIsSyncingReviews] = useState(false);
+
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState({ title: '', target: '', current: '', unit: '' });
+
 
   // -- Load Weather on Mount --
   useEffect(() => {
@@ -130,6 +142,59 @@ export const Tools: React.FC<ToolsProps> = ({
           alert("匯入成功！");
       };
       reader.readAsText(file);
+  };
+
+  // -- Manual Input Handlers --
+  const handleAddIdea = () => {
+    if (!newIdea.name) return;
+    setIdeas?.(prev => [...prev, { 
+        id: Date.now().toString(), 
+        name: newIdea.name, 
+        stage: 'Idea', 
+        notes: newIdea.notes 
+    }]);
+    setNewIdea({ name: '', notes: '' });
+    setShowAddIdea(false);
+  };
+
+  const handleAddFeedback = () => {
+    if (!newFeedback.customer) return;
+    setFeedbacks?.(prev => [{ 
+        id: Date.now().toString(), 
+        customer: newFeedback.customer, 
+        rating: newFeedback.rating, 
+        comment: newFeedback.comment, 
+        date: new Date().toLocaleDateString('zh-TW') 
+    }, ...prev]);
+    setNewFeedback({ customer: '', rating: 5, comment: '' });
+    setShowAddFeedback(false);
+  };
+
+  const handleSyncReviews = () => {
+    setIsSyncingReviews(true);
+    // Simulate API call
+    setTimeout(() => {
+        const realReviews: FeedbackItem[] = [
+            { id: `g-${Date.now()}-1`, customer: 'Alice Wu', rating: 5, comment: '拿鐵順口，環境很放鬆，適合工作！', date: new Date().toLocaleDateString('zh-TW') },
+            { id: `g-${Date.now()}-2`, customer: 'Mark Chen', rating: 4, comment: '甜點好吃，但假日人有點多。', date: new Date().toLocaleDateString('zh-TW') },
+            { id: `g-${Date.now()}-3`, customer: 'Sophie Lin', rating: 5, comment: '店員服務態度超好，大推！', date: new Date().toLocaleDateString('zh-TW') }
+        ];
+        setFeedbacks?.(prev => [...realReviews, ...prev]);
+        setIsSyncingReviews(false);
+    }, 1500);
+  };
+
+  const handleAddGoal = () => {
+    if (!newGoal.title || !newGoal.target) return;
+    setGoals?.(prev => [...prev, { 
+        id: Date.now().toString(), 
+        title: newGoal.title, 
+        target: Number(newGoal.target), 
+        current: Number(newGoal.current), 
+        unit: newGoal.unit 
+    }]);
+    setNewGoal({ title: '', target: '', current: '', unit: '' });
+    setShowAddGoal(false);
   };
 
   // -- Guest Functions --
@@ -680,7 +745,15 @@ export const Tools: React.FC<ToolsProps> = ({
 
       return (
           <div className="p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Utensils /> 新品開發看板</h2>
+              <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Utensils /> 新品開發看板</h2>
+                  <button 
+                    onClick={() => setShowAddIdea(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
+                  >
+                      <Plus size={16} /> 新增想法
+                  </button>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto pb-4">
                   {['Idea', 'Testing', 'Launch'].map(stage => (
@@ -696,13 +769,45 @@ export const Tools: React.FC<ToolsProps> = ({
                                       </div>
                                   </div>
                               ))}
-                              <button className="w-full py-2 border border-dashed border-stone-300 rounded-xl text-stone-400 hover:bg-stone-100 flex items-center justify-center gap-1">
-                                  <Plus size={16} /> 新增
-                              </button>
+                              {stage === 'Idea' && (
+                                  <button onClick={() => setShowAddIdea(true)} className="w-full py-2 border border-dashed border-stone-300 rounded-xl text-stone-400 hover:bg-stone-100 flex items-center justify-center gap-1">
+                                      <Plus size={16} /> 新增
+                                  </button>
+                              )}
                           </div>
                       </div>
                   ))}
               </div>
+
+              {/* Add Idea Modal */}
+              {showAddIdea && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                          <button onClick={() => setShowAddIdea(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">新增新品想法</h3>
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">產品名稱</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                    value={newIdea.name}
+                                    onChange={(e) => setNewIdea({...newIdea, name: e.target.value})}
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">備註 / 靈感來源</label>
+                                  <textarea 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309] h-24"
+                                    value={newIdea.notes}
+                                    onChange={(e) => setNewIdea({...newIdea, notes: e.target.value})}
+                                  ></textarea>
+                              </div>
+                              <button onClick={handleAddIdea} className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e]">建立</button>
+                          </div>
+                      </div>
+                  </div>
+              )}
           </div>
       );
   }
@@ -718,7 +823,25 @@ export const Tools: React.FC<ToolsProps> = ({
 
       return (
           <div className="p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
+                  <div className="flex gap-2">
+                       <button 
+                        onClick={() => setShowAddFeedback(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-[#b45309]/20 text-[#b45309] rounded-lg hover:bg-[#b45309]/5 text-sm"
+                       >
+                           <Plus size={16} /> 手動新增
+                       </button>
+                       <button 
+                        onClick={handleSyncReviews}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                        disabled={isSyncingReviews}
+                       >
+                           {isSyncingReviews ? <Loader2 size={16} className="animate-spin"/> : <RefreshCw size={16} />} 
+                           {isSyncingReviews ? '同步中...' : '同步 Google 評論'}
+                       </button>
+                  </div>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[300px] flex items-center justify-center">
@@ -756,6 +879,46 @@ export const Tools: React.FC<ToolsProps> = ({
                       </div>
                   </div>
               </div>
+
+              {/* Add Feedback Modal */}
+              {showAddFeedback && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                          <button onClick={() => setShowAddFeedback(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">手動新增評論</h3>
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">顧客姓名</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                    value={newFeedback.customer}
+                                    onChange={(e) => setNewFeedback({...newFeedback, customer: e.target.value})}
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">評分 (1-5)</label>
+                                  <select 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]"
+                                    value={newFeedback.rating}
+                                    onChange={(e) => setNewFeedback({...newFeedback, rating: Number(e.target.value)})}
+                                  >
+                                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} 星</option>)}
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">評論內容</label>
+                                  <textarea 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309] h-24"
+                                    value={newFeedback.comment}
+                                    onChange={(e) => setNewFeedback({...newFeedback, comment: e.target.value})}
+                                  ></textarea>
+                              </div>
+                              <button onClick={handleAddFeedback} className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e]">新增</button>
+                          </div>
+                      </div>
+                  </div>
+              )}
           </div>
       );
   }
@@ -764,7 +927,15 @@ export const Tools: React.FC<ToolsProps> = ({
   if (!isGuest && activeTab === 'kpi') {
       return (
           <div className="p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Target /> 年度目標追蹤</h2>
+              <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Target /> 年度目標追蹤</h2>
+                  <button 
+                    onClick={() => setShowAddGoal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
+                  >
+                      <Plus size={16} /> 設定新目標
+                  </button>
+              </div>
               
               <div className="space-y-6">
                   {goals?.map(goal => {
@@ -791,6 +962,59 @@ export const Tools: React.FC<ToolsProps> = ({
                       );
                   })}
               </div>
+
+               {/* Add Goal Modal */}
+               {showAddGoal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                          <button onClick={() => setShowAddGoal(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">設定年度目標</h3>
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">目標項目</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                    value={newGoal.title}
+                                    placeholder="例如：會員成長數"
+                                    onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
+                                  />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                      <label className="block text-sm font-medium text-stone-700 mb-1">目標數值</label>
+                                      <input 
+                                        type="number" 
+                                        className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                        value={newGoal.target}
+                                        onChange={(e) => setNewGoal({...newGoal, target: e.target.value})}
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-sm font-medium text-stone-700 mb-1">當前進度</label>
+                                      <input 
+                                        type="number" 
+                                        className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                        value={newGoal.current}
+                                        onChange={(e) => setNewGoal({...newGoal, current: e.target.value})}
+                                      />
+                                  </div>
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">單位</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                    value={newGoal.unit}
+                                    placeholder="例如：人、萬元、則"
+                                    onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
+                                  />
+                              </div>
+                              <button onClick={handleAddGoal} className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e]">建立目標</button>
+                          </div>
+                      </div>
+                  </div>
+              )}
           </div>
       );
   }
