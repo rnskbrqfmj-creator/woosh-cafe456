@@ -9,7 +9,7 @@ import {
     Package, TrendingUp, AlertCircle, DollarSign, Leaf, Users, 
     Cloud, CloudRain, CloudSun, Upload, Download, Plus, Trash2, ShoppingCart, CheckCircle, Heart,
     Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send, RefreshCw, X, Loader2,
-    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown, Sparkles
+    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown, Sparkles, History
 } from './icons';
 import { GoogleGenAI } from "@google/genai";
 
@@ -190,22 +190,36 @@ export const Tools: React.FC<ToolsProps> = ({
     let imageUrl = "";
 
     try {
-        if (process.env.API_KEY) {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            // 1. Generate Recipe
+        if (!process.env.API_KEY) {
+            alert("錯誤：找不到 API Key，請檢查環境變數設定。");
+            setIsGeneratingProduct(false);
+            return;
+        }
+
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        
+        // 1. Generate Recipe (Generally faster and more reliable)
+        try {
             const recipePrompt = `Create a short, appealing recipe for a cafe item named "${newIdea.name}". Keep it concise: Ingredients list and 3 simple steps. Notes: ${newIdea.notes}`;
             const recipeResp = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: recipePrompt
             });
             recipe = recipeResp.text || "無法生成食譜";
+        } catch (textError) {
+            console.error("Recipe generation failed", textError);
+            recipe = "食譜生成失敗";
+        }
 
-            // 2. Generate Image
+        // 2. Generate Image (Heavier, wrap in separate try-catch so recipe is saved even if image fails)
+        try {
             const imagePrompt = `A professional, high-quality, delicious food photography close-up shot of ${newIdea.name} in a cafe setting. ${newIdea.notes}`;
             const imageResp = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
-                contents: imagePrompt,
+                contents: { parts: [{ text: imagePrompt }] },
+                config: {
+                    imageConfig: { aspectRatio: "1:1" }
+                }
             });
             
             // Extract image
@@ -215,23 +229,30 @@ export const Tools: React.FC<ToolsProps> = ({
                     break;
                 }
             }
+        } catch (imageError) {
+            console.error("Image generation failed", imageError);
+            // We just proceed without an image
         }
-    } catch (error) {
-        console.error("AI Generation failed", error);
-        recipe = "AI 生成失敗，請稍後再試。";
-    }
+        
+        // Save result
+        setIdeas?.(prev => [{ 
+            id: Date.now().toString(), 
+            name: newIdea.name, 
+            stage: 'Idea', 
+            notes: newIdea.notes,
+            recipe: recipe,
+            imageUrl: imageUrl
+        }, ...prev]);
 
-    setIdeas?.(prev => [...prev, { 
-        id: Date.now().toString(), 
-        name: newIdea.name, 
-        stage: 'Idea', 
-        notes: newIdea.notes,
-        recipe: recipe,
-        imageUrl: imageUrl
-    }]);
-    setNewIdea({ name: '', notes: '' });
-    setIsGeneratingProduct(false);
-    setShowAddIdea(false);
+        setNewIdea({ name: '', notes: '' });
+        setShowAddIdea(false);
+
+    } catch (error) {
+        console.error("AI Generation Critical Failure", error);
+        alert("生成服務暫時無法使用，請稍後再試。");
+    } finally {
+        setIsGeneratingProduct(false);
+    }
   };
 
   const handleGenerateSocialCopy = async () => {
@@ -269,16 +290,17 @@ export const Tools: React.FC<ToolsProps> = ({
 
   const handlePublishSocialPost = () => {
       if (!socialDraft) return;
-      setPosts?.(prev => [{
+      const newPost: SocialPost = {
           id: Date.now().toString(),
           content: socialDraft,
-          date: new Date().toLocaleDateString('zh-TW'),
+          date: new Date().toLocaleString('zh-TW'),
           likes: 0,
           shares: 0,
           platform: 'IG' // Default to IG for now
-      }, ...prev]);
+      };
+      setPosts?.(prev => [newPost, ...prev]);
       setSocialDraft(""); // Clear draft
-      alert("貼文已加入排程！");
+      alert("貼文已發布並存入歷史紀錄！");
   };
 
   const handleAddFeedback = async () => {
@@ -1065,7 +1087,7 @@ export const Tools: React.FC<ToolsProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Draft Area */}
-                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 space-y-4">
+                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 space-y-4 h-full flex flex-col">
                       <div className="flex justify-between items-center">
                           <h3 className="font-bold text-stone-700">靈感草稿區</h3>
                           <button 
@@ -1076,16 +1098,16 @@ export const Tools: React.FC<ToolsProps> = ({
                           </button>
                       </div>
                       <textarea 
-                          className="w-full h-32 p-3 border rounded-xl focus:outline-none focus:border-[#b45309]"
+                          className="w-full flex-1 p-3 border rounded-xl focus:outline-none focus:border-[#b45309] min-h-[200px]"
                           placeholder="輸入活動想法，例如：新品上市、節日促銷..."
                           value={socialDraft}
                           onChange={(e) => setSocialDraft(e.target.value)}
                       ></textarea>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mt-auto">
                           <button 
                             onClick={handleGenerateSocialCopy}
                             disabled={isGeneratingSocial}
-                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-70"
+                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-70 shadow-sm"
                           >
                               {isGeneratingSocial ? <Loader2 className="animate-spin" size={18} /> : <Target size={18} />}
                               {isGeneratingSocial ? 'AI 生成中...' : 'AI 生成文案'}
@@ -1093,7 +1115,7 @@ export const Tools: React.FC<ToolsProps> = ({
                           {socialDraft && (
                               <button 
                                 onClick={handlePublishSocialPost}
-                                className="px-4 py-2 border border-stone-200 text-stone-600 rounded-xl hover:bg-stone-50 flex items-center gap-2"
+                                className="px-4 py-2 border border-stone-200 text-stone-600 rounded-xl hover:bg-stone-50 flex items-center gap-2 shadow-sm"
                               >
                                   <Send size={18} /> 發布至排程
                               </button>
@@ -1101,28 +1123,39 @@ export const Tools: React.FC<ToolsProps> = ({
                       </div>
                   </div>
 
-                  {/* Recent Posts */}
-                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 space-y-4">
-                      <h3 className="font-bold text-stone-700">近期貼文成效</h3>
-                      <div className="space-y-3">
+                  {/* History / Recent Posts */}
+                  <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 space-y-4 max-h-[600px] overflow-y-auto">
+                      <h3 className="font-bold text-stone-700 flex items-center gap-2">
+                          <History size={18}/> 歷史發布紀錄
+                      </h3>
+                      <div className="space-y-4">
                           {posts && posts.length > 0 ? (
                               posts.map(post => (
-                                  <div key={post.id} className="flex gap-4 p-3 hover:bg-stone-50 rounded-lg transition-colors">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 ${post.platform === 'IG' ? 'bg-gradient-to-tr from-yellow-400 to-purple-600' : 'bg-blue-600'}`}>
-                                          {post.platform === 'IG' ? <Instagram size={20} /> : <Facebook size={20} />}
+                                  <div key={post.id} className="border border-stone-100 rounded-xl p-4 hover:shadow-md transition-all bg-stone-50/30">
+                                      <div className="flex justify-between items-start mb-3">
+                                          <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs font-bold text-white shadow-sm ${post.platform === 'IG' ? 'bg-gradient-to-tr from-yellow-400 to-purple-600' : 'bg-blue-600'}`}>
+                                              {post.platform === 'IG' ? <Instagram size={12} /> : <Facebook size={12} />}
+                                              {post.platform}
+                                          </div>
+                                          <div className="text-xs text-stone-400 font-mono">{post.date}</div>
                                       </div>
-                                      <div className="flex-1">
-                                          <div className="text-sm font-medium text-stone-800 line-clamp-2">{post.content}</div>
-                                          <div className="text-xs text-stone-400 mt-1">{post.date}</div>
+                                      
+                                      <div className="text-sm text-stone-700 whitespace-pre-wrap leading-relaxed">
+                                          {post.content}
                                       </div>
-                                      <div className="text-right text-xs font-bold text-stone-600 shrink-0">
-                                          <div>❤️ {post.likes}</div>
-                                          <div>🔁 {post.shares}</div>
+                                      
+                                      <div className="mt-4 flex gap-4 text-xs font-bold text-stone-500 border-t border-stone-200/60 pt-3">
+                                           <span className="flex items-center gap-1 hover:text-red-500 cursor-pointer"><Heart size={12} /> {post.likes} Likes</span>
+                                           <span className="flex items-center gap-1 hover:text-blue-500 cursor-pointer"><MessageSquare size={12} /> {post.shares} Comments</span>
                                       </div>
                                   </div>
                               ))
                           ) : (
-                              <p className="text-center text-stone-400 py-8">尚無貼文記錄</p>
+                              <div className="text-center text-stone-400 py-12 flex flex-col items-center">
+                                  <div className="bg-stone-100 p-4 rounded-full mb-3"><Camera size={24} className="text-stone-300"/></div>
+                                  <p>尚無貼文記錄</p>
+                                  <p className="text-xs mt-1">產生的文案發布後將顯示於此</p>
+                              </div>
                           )}
                       </div>
                   </div>
