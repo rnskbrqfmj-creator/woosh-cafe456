@@ -9,7 +9,7 @@ import {
     Package, TrendingUp, AlertCircle, DollarSign, Leaf, Users, 
     Cloud, CloudRain, CloudSun, Upload, Download, Plus, Trash2, ShoppingCart, CheckCircle, Heart,
     Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send, RefreshCw, X, Loader2,
-    Bell, Calendar, Clock, MapPin
+    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown
 } from './icons';
 import { GoogleGenAI } from "@google/genai";
 
@@ -34,6 +34,21 @@ interface ToolsProps {
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+// WMO Weather Codes Interpretation
+const getWeatherDesc = (code: number): { desc: string; advice: string } => {
+    switch (code) {
+        case 0: return { desc: "晴朗無雲", advice: "天氣很好，戶外座位區可以多加利用！" };
+        case 1: case 2: case 3: return { desc: "多雲時晴", advice: "舒適的天氣，預計人流穩定。" };
+        case 45: case 48: return { desc: "有霧/霧霾", advice: "能見度低，點亮門口燈光吸引過路客。" };
+        case 51: case 53: case 55: return { desc: "毛毛雨", advice: "或許可以推播『雨天第二杯半價』活動。" };
+        case 61: case 63: case 65: return { desc: "降雨", advice: "雨勢明顯，加強外送平台廣告投放。" };
+        case 71: case 73: case 75: return { desc: "降雪", advice: "極端天氣，推出熱可可或熱湯暖客。" };
+        case 80: case 81: case 82: return { desc: "雷陣雨", advice: "注意午後雷陣雨，提醒客人帶傘。" };
+        case 95: case 96: case 99: return { desc: "雷雨/風暴", advice: "天氣惡劣，檢查門窗，注意外送員安全。" };
+        default: return { desc: "多雲", advice: "天氣穩定。" };
+    }
+};
 
 // Encouraging Quotes for the Manager
 const ENCOURAGING_QUOTES = [
@@ -61,7 +76,7 @@ export const Tools: React.FC<ToolsProps> = ({
   const [restockInputs, setRestockInputs] = useState<{[key: string]: number}>({});
 
   // -- Weather State --
-  const [weather, setWeather] = useState<{temp: number, code: number, desc: string} | null>(null);
+  const [weather, setWeather] = useState<{temp: number, code: number, desc: string, advice: string} | null>(null);
 
   // -- Modal States for Manual Inputs --
   const [showAddIdea, setShowAddIdea] = useState(false);
@@ -78,6 +93,10 @@ export const Tools: React.FC<ToolsProps> = ({
   const [showAddEsg, setShowAddEsg] = useState(false);
   const [newEsg, setNewEsg] = useState({ name: '', score: 80 });
 
+  // -- Social Media State --
+  const [socialDraft, setSocialDraft] = useState("");
+  const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
+
   // -- Load Weather on Mount --
   useEffect(() => {
     if (!isGuest && activeTab === 'daily') {
@@ -86,37 +105,35 @@ export const Tools: React.FC<ToolsProps> = ({
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`);
                 const data = await res.json();
                 
-                // Map WMO codes to description
+                // Map WMO codes
                 const code = data.current_weather.weathercode;
-                let desc = "晴朗";
-                if (code === 1 || code === 2 || code === 3) desc = "多雲時晴";
-                if (code === 45 || code === 48) desc = "有霧";
-                if (code >= 51 && code <= 67) desc = "有雨";
-                if (code >= 71 && code <= 77) desc = "有雪";
-                if (code >= 80 && code <= 82) desc = "陣雨";
-                if (code >= 95) desc = "雷雨";
+                const info = getWeatherDesc(code);
 
                 setWeather({
                     temp: data.current_weather.temperature,
                     code: code,
-                    desc: desc
+                    desc: info.desc,
+                    advice: info.advice
                 });
             } catch (e) {
                 console.error("Weather fetch failed", e);
-                // Fallback to offline mock if API fails completely
-                setWeather({ temp: 24, code: 0, desc: "晴朗 (預設)" });
+                // Fallback to offline mock
+                setWeather({ temp: 24, code: 0, desc: "晴朗 (預設)", advice: "目前無法取得天氣，預設為晴天。" });
             }
         };
 
-        // Default to Yilan City coordinates (Woosh Cafe Location) if permission denied or error
-        // 24.7570, 121.7530
+        // Yilan City coordinates (Woosh Cafe Location)
+        const YILAN_LAT = 24.7570;
+        const YILAN_LNG = 121.7530;
+
+        // Try geolocation, fallback to Yilan
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 fetchWeather(pos.coords.latitude, pos.coords.longitude);
             }, 
             (err) => {
                 console.warn("Geolocation denied, using Yilan default", err);
-                fetchWeather(24.7570, 121.7530);
+                fetchWeather(YILAN_LAT, YILAN_LNG);
             }
         );
     }
@@ -217,20 +234,69 @@ export const Tools: React.FC<ToolsProps> = ({
     setShowAddIdea(false);
   };
 
+  const handleGenerateSocialCopy = async () => {
+      if (!socialDraft) {
+          alert("請先輸入一些活動想法或關鍵字！");
+          return;
+      }
+      setIsGeneratingSocial(true);
+      try {
+          if (process.env.API_KEY) {
+              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+              const prompt = `你是一位專業的社群小編。請根據以下想法寫一篇吸引人的咖啡廳社群貼文 (適用於 Facebook/Instagram)："${socialDraft}"。
+              要求：
+              1. 語氣親切、有活力，吸引顧客上門。
+              2. 加入適當的 Emoji 表情符號。
+              3. 文末加入 3-5 個熱門 Hashtag。
+              4. 使用繁體中文。`;
+              
+              const resp = await ai.models.generateContent({
+                  model: 'gemini-3-flash-preview',
+                  contents: prompt
+              });
+              
+              if (resp.text) {
+                  setSocialDraft(resp.text);
+              }
+          }
+      } catch (e) {
+          console.error("Social generation failed", e);
+          alert("AI 連線失敗，請稍後再試");
+      } finally {
+          setIsGeneratingSocial(false);
+      }
+  };
+
+  const handlePublishSocialPost = () => {
+      if (!socialDraft) return;
+      setPosts?.(prev => [{
+          id: Date.now().toString(),
+          content: socialDraft,
+          date: new Date().toLocaleDateString('zh-TW'),
+          likes: 0,
+          shares: 0,
+          platform: 'IG' // Default to IG for now
+      }, ...prev]);
+      setSocialDraft(""); // Clear draft
+      alert("貼文已加入排程！");
+  };
+
   const handleAddFeedback = async () => {
     if (!newFeedback.customer) return;
     setIsAnalyzingFeedback(true);
     
-    let sentiment: 'Positive' | 'Neutral' | 'Negative' = 'Neutral';
+    let positivePoints: string[] = [];
+    let negativePoints: string[] = [];
     let advice = "";
 
     try {
         if (process.env.API_KEY) {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const prompt = `Analyze this cafe customer review: "${newFeedback.comment}". 
-            1. Classify sentiment as exactly one of: Positive, Neutral, Negative.
-            2. Provide 1 short sentence of actionable advice for the cafe owner.
-            Output format: JSON { "sentiment": "...", "advice": "..." }`;
+            1. Extract specific positive points (pros) into a list.
+            2. Extract specific negative points (cons) into a list.
+            3. Provide 1 short sentence of actionable advice for the cafe owner based on the cons (or pros if no cons).
+            Output format: JSON { "positivePoints": ["..."], "negativePoints": ["..."], "advice": "..." }`;
             
             const resp = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -240,7 +306,8 @@ export const Tools: React.FC<ToolsProps> = ({
             
             const jsonText = resp.text || "{}";
             const result = JSON.parse(jsonText);
-            sentiment = result.sentiment || 'Neutral';
+            positivePoints = result.positivePoints || [];
+            negativePoints = result.negativePoints || [];
             advice = result.advice || '無法分析';
         }
     } catch (e) {
@@ -254,7 +321,8 @@ export const Tools: React.FC<ToolsProps> = ({
         rating: newFeedback.rating, 
         comment: newFeedback.comment, 
         date: new Date().toLocaleDateString('zh-TW'),
-        sentiment: sentiment,
+        positivePoints: positivePoints,
+        negativePoints: negativePoints,
         advice: advice
     }, ...prev]);
     setNewFeedback({ customer: '', rating: 5, comment: '' });
@@ -319,7 +387,27 @@ export const Tools: React.FC<ToolsProps> = ({
       setTimeout(() => setCheckoutComplete(false), 5000);
   };
 
-  // -- Empty State Component --
+  // -- Skeleton Visual for Empty States --
+  const SkeletonOverlay = ({ children, title, onClick, buttonText }: { children?: React.ReactNode, title: string, onClick?: () => void, buttonText?: string }) => (
+    <div className="relative rounded-2xl overflow-hidden border border-[#78350f]/10 bg-white group">
+        {/* Directly visible content, slightly faded to imply it's just a preview */}
+        <div className="pointer-events-none select-none opacity-70 transition-opacity group-hover:opacity-50"> 
+            {children}
+        </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/5 backdrop-blur-[1px]"> 
+             <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-stone-100 text-center space-y-3">
+                 <p className="font-bold text-stone-600">{title}</p>
+                 <p className="text-xs text-stone-400">目前尚無數據，背景為範例預覽</p>
+                 {onClick && (
+                    <button onClick={onClick} className="flex items-center gap-2 px-6 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm shadow-md transition-all transform hover:scale-105 mx-auto">
+                        <Plus size={16} /> {buttonText}
+                    </button>
+                 )}
+             </div>
+        </div>
+    </div>
+  );
+
   const EmptyState = ({ message, onClick, buttonText }: { message: string, onClick?: () => void, buttonText?: string }) => (
       <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-stone-200 rounded-2xl bg-stone-50/50">
           <p className="text-stone-400 mb-4">{message}</p>
@@ -532,21 +620,30 @@ export const Tools: React.FC<ToolsProps> = ({
                   </div>
                   
                   {/* Real Weather Widget (Yilan) */}
-                  <div className="w-full md:w-auto bg-white px-6 py-3 rounded-2xl shadow-sm border border-[#78350f]/10 flex items-center justify-between md:justify-start gap-4">
+                  <div className="w-full md:w-auto bg-white px-6 py-4 rounded-2xl shadow-sm border border-[#78350f]/10">
                       {weather ? (
-                          <>
-                             <div className="text-4xl">
-                                {weather.code <= 3 ? <CloudSun className="text-yellow-500" /> : <CloudRain className="text-blue-500" />}
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                             <div className="flex items-center gap-4">
+                                <div className="text-4xl">
+                                    {weather.code <= 3 ? <CloudSun className="text-yellow-500" /> : <CloudRain className="text-blue-500" />}
+                                </div>
+                                <div>
+                                    <div className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                        {weather.temp}°C 
+                                        <span className="text-base font-normal text-stone-500">宜蘭市</span>
+                                    </div>
+                                    <div className="text-sm text-gray-500">{weather.desc}</div>
+                                </div>
                              </div>
-                             <div>
-                                 <div className="text-xl font-bold text-gray-800">{weather.temp}°C</div>
-                                 <div className="text-xs text-gray-500 flex items-center gap-1">
-                                    宜蘭 • {weather.desc}
-                                 </div>
+                             <div className="bg-[#b45309]/5 p-3 rounded-lg border border-[#b45309]/20 text-sm text-[#78350f]">
+                                <span className="font-bold">💡 經營建議：</span> {weather.advice}
                              </div>
-                          </>
+                          </div>
                       ) : (
-                          <div className="text-sm text-gray-400">載入天氣中...</div>
+                          <div className="flex items-center gap-2 text-stone-400">
+                             <Loader2 className="animate-spin" size={20} />
+                             載入天氣資訊中...
+                          </div>
                       )}
                   </div>
               </header>
@@ -785,7 +882,24 @@ export const Tools: React.FC<ToolsProps> = ({
                </div>
                
                {orders.length === 0 ? (
-                  <EmptyState message="尚無營收資料，等待訪客點餐或手動匯入" />
+                  <SkeletonOverlay title="營收儀表板範例">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#78350f]/10">
+                               <h3 className="text-stone-500 mb-2">即時總營收</h3>
+                               <p className="text-4xl font-bold text-[#b45309]">$28,450</p>
+                               <p className="text-sm text-green-600 mt-2 flex items-center gap-1"><TrendingUp size={14}/> 較昨日成長 12%</p>
+                           </div>
+                           <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#78350f]/10">
+                               <h3 className="text-stone-500 mb-2">訪客點單數 (待結帳)</h3>
+                               <p className="text-4xl font-bold text-stone-800">8 筆</p>
+                               <p className="text-sm text-stone-400 mt-2">來自訪客模式的即時數據</p>
+                           </div>
+                       </div>
+                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#78350f]/10 mt-6">
+                            <h3 className="font-bold text-stone-800 mb-4">最新訂單明細 (來自訪客模式)</h3>
+                            <div className="h-40 bg-stone-100 rounded-lg"></div>
+                       </div>
+                  </SkeletonOverlay>
                ) : (
                    <>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -836,6 +950,14 @@ export const Tools: React.FC<ToolsProps> = ({
 
   // -- MANAGER VIEW: ESG --
   if (!isGuest && activeTab === 'esg') {
+      const mockEsgData = [
+          { name: '不鏽鋼吸管使用率', score: 80, fullMark: 100 },
+          { name: '咖啡渣回收率', score: 95, fullMark: 100 },
+          { name: '在地食材比例', score: 60, fullMark: 100 },
+          { name: '節能設備', score: 70, fullMark: 100 },
+          { name: '無紙化交易', score: 50, fullMark: 100 },
+      ];
+
       return (
           <div className="p-4 md:p-6 space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -849,7 +971,29 @@ export const Tools: React.FC<ToolsProps> = ({
               </div>
 
               {esgItems?.length === 0 ? (
-                  <EmptyState message="尚無 ESG 指標，請點擊新增" onClick={() => setShowAddEsg(true)} buttonText="新增 ESG 項目" />
+                  <SkeletonOverlay title="永續發展指標範例" onClick={() => setShowAddEsg(true)} buttonText="新增 ESG 項目">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[300px] md:h-[400px] flex flex-col items-center justify-center">
+                              <ResponsiveContainer width="100%" height="100%">
+                                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={mockEsgData}>
+                                      <PolarGrid />
+                                      <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
+                                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                                      <Radar name="Woosh Cafe" dataKey="score" stroke="#3f6212" fill="#3f6212" fillOpacity={0.6} />
+                                  </RadarChart>
+                              </ResponsiveContainer>
+                          </div>
+                          <div className="space-y-4">
+                              <div className="bg-[#ecfccb] p-6 rounded-2xl">
+                                  <h3 className="font-bold text-[#3f6212] mb-2">永續管理列表</h3>
+                                  <ul className="list-disc list-inside space-y-2 text-[#3f6212]/80">
+                                      <li>範例: 不鏽鋼吸管使用率 (80分)</li>
+                                      <li>範例: 咖啡渣回收率 (95分)</li>
+                                  </ul>
+                              </div>
+                          </div>
+                      </div>
+                  </SkeletonOverlay>
               ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[300px] md:h-[400px] flex flex-col items-center justify-center">
@@ -926,10 +1070,27 @@ export const Tools: React.FC<ToolsProps> = ({
                       <textarea 
                           className="w-full h-32 p-3 border rounded-xl focus:outline-none focus:border-[#b45309]"
                           placeholder="輸入活動想法，讓 AI 幫你潤飾..."
+                          value={socialDraft}
+                          onChange={(e) => setSocialDraft(e.target.value)}
                       ></textarea>
-                      <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl flex items-center justify-center gap-2">
-                          <Target size={18} /> AI 生成文案
-                      </button>
+                      <div className="flex gap-2">
+                          <button 
+                            onClick={handleGenerateSocialCopy}
+                            disabled={isGeneratingSocial}
+                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-70"
+                          >
+                              {isGeneratingSocial ? <Loader2 className="animate-spin" size={18} /> : <Target size={18} />}
+                              {isGeneratingSocial ? 'AI 生成中...' : 'AI 生成文案'}
+                          </button>
+                          {socialDraft && (
+                              <button 
+                                onClick={handlePublishSocialPost}
+                                className="px-4 py-2 border border-stone-200 text-stone-600 rounded-xl hover:bg-stone-50 flex items-center gap-2"
+                              >
+                                  <Send size={18} /> 發布至排程
+                              </button>
+                          )}
+                      </div>
                   </div>
 
                   {/* Recent Posts */}
@@ -939,14 +1100,14 @@ export const Tools: React.FC<ToolsProps> = ({
                           {posts && posts.length > 0 ? (
                               posts.map(post => (
                                   <div key={post.id} className="flex gap-4 p-3 hover:bg-stone-50 rounded-lg transition-colors">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${post.platform === 'IG' ? 'bg-gradient-to-tr from-yellow-400 to-purple-600' : 'bg-blue-600'}`}>
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 ${post.platform === 'IG' ? 'bg-gradient-to-tr from-yellow-400 to-purple-600' : 'bg-blue-600'}`}>
                                           {post.platform === 'IG' ? <Instagram size={20} /> : <Facebook size={20} />}
                                       </div>
                                       <div className="flex-1">
-                                          <div className="text-sm font-medium text-stone-800 line-clamp-1">{post.content}</div>
+                                          <div className="text-sm font-medium text-stone-800 line-clamp-2">{post.content}</div>
                                           <div className="text-xs text-stone-400 mt-1">{post.date}</div>
                                       </div>
-                                      <div className="text-right text-xs font-bold text-stone-600">
+                                      <div className="text-right text-xs font-bold text-stone-600 shrink-0">
                                           <div>❤️ {post.likes}</div>
                                           <div>🔁 {post.shares}</div>
                                       </div>
@@ -983,7 +1144,19 @@ export const Tools: React.FC<ToolsProps> = ({
               </div>
               
               {ideas && ideas.length === 0 ? (
-                  <EmptyState message="目前沒有開發中的新品，點擊新增讓 AI 幫您生成食譜與圖片" onClick={() => setShowAddIdea(true)} buttonText="新增想法" />
+                   <SkeletonOverlay title="新品開發看板範例" onClick={() => setShowAddIdea(true)} buttonText="新增想法">
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto pb-4">
+                          {['Idea', 'Testing', 'Launch'].map(stage => (
+                              <div key={stage} className="bg-stone-100/50 p-4 rounded-2xl min-w-[250px]">
+                                  <h3 className="font-bold text-stone-600 mb-4 px-2">{stage === 'Idea' ? '靈感發想' : stage === 'Testing' ? '試做調整' : '準備上市'}</h3>
+                                  <div className="space-y-3">
+                                      <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 h-24"></div>
+                                      <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 h-24"></div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                   </SkeletonOverlay>
               ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto pb-4">
                       {['Idea', 'Testing', 'Launch'].map(stage => (
@@ -1060,151 +1233,6 @@ export const Tools: React.FC<ToolsProps> = ({
       );
   }
 
-  // -- MANAGER VIEW: FEEDBACK --
-  if (!isGuest && activeTab === 'feedback') {
-      const data = feedbacks && feedbacks.length > 0 ? [
-        { name: '5 星', value: feedbacks.filter(f => f.rating === 5).length },
-        { name: '4 星', value: feedbacks.filter(f => f.rating === 4).length },
-        { name: '3 星', value: feedbacks.filter(f => f.rating === 3).length },
-        { name: '1-2 星', value: feedbacks.filter(f => f.rating <= 2).length },
-      ] : [];
-
-      const averageRating = feedbacks && feedbacks.length > 0 
-        ? (feedbacks.reduce((acc, curr) => acc + curr.rating, 0) / feedbacks.length).toFixed(1)
-        : '0.0';
-
-      return (
-          <div className="p-4 md:p-6 space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
-                  <div className="flex flex-wrap gap-2">
-                       <button 
-                        onClick={() => setShowAddFeedback(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
-                       >
-                           <Plus size={16} /> 手動新增評論 (AI 分析)
-                       </button>
-                       <a 
-                        href="https://www.google.com/maps/search/?api=1&query=無所時時+Woosh+Cafe+宜蘭" 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 text-sm"
-                       >
-                           <MapPin size={16} /> 前往 Google Maps
-                       </a>
-                  </div>
-              </div>
-              
-              {feedbacks && feedbacks.length === 0 ? (
-                  <EmptyState message="目前沒有評論資料，請手動新增評論讓 AI 幫您分析" onClick={() => setShowAddFeedback(true)} buttonText="新增評論" />
-              ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 h-[250px] md:h-[300px] flex items-center justify-center">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                  <Pie data={data} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                      {data.map((entry, index) => (
-                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                      ))}
-                                  </Pie>
-                                  <Tooltip />
-                              </PieChart>
-                          </ResponsiveContainer>
-                          <div className="absolute text-center">
-                              <div className="text-3xl font-bold text-[#78350f]">{averageRating}</div>
-                              <div className="text-xs text-stone-500">平均評分</div>
-                          </div>
-                      </div>
-
-                      <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10">
-                          <h3 className="font-bold text-stone-700 mb-4">顧客留言與 AI 建議</h3>
-                          <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
-                              {feedbacks?.map(fb => (
-                                  <div key={fb.id} className="border-b border-stone-100 pb-3 last:border-0">
-                                      <div className="flex justify-between items-start">
-                                          <div className="flex items-center gap-2">
-                                              <span className="font-bold text-stone-800">{fb.customer}</span>
-                                              {fb.sentiment && (
-                                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                                      fb.sentiment === 'Positive' ? 'bg-green-100 text-green-700' :
-                                                      fb.sentiment === 'Negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                                                  }`}>
-                                                      {fb.sentiment === 'Positive' ? '正面' : fb.sentiment === 'Negative' ? '負面' : '中立'}
-                                                  </span>
-                                              )}
-                                          </div>
-                                          <div className="flex text-yellow-400">
-                                              {[...Array(fb.rating)].map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
-                                          </div>
-                                      </div>
-                                      <p className="text-sm text-stone-600 mt-1">{fb.comment}</p>
-                                      {fb.advice && (
-                                          <div className="mt-2 bg-[#ecfccb]/50 p-2 rounded text-xs text-[#3f6212] flex items-start gap-1">
-                                              <span className="font-bold shrink-0">AI 建議:</span> {fb.advice}
-                                          </div>
-                                      )}
-                                      <div className="text-xs text-stone-400 mt-2">{fb.date}</div>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-                  </div>
-              )}
-
-              {/* Add Feedback Modal */}
-              {showAddFeedback && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                          <button onClick={() => setShowAddFeedback(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
-                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">手動新增評論</h3>
-                          <div className="space-y-4">
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">顧客姓名</label>
-                                  <input 
-                                    type="text" 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                    value={newFeedback.customer}
-                                    onChange={(e) => setNewFeedback({...newFeedback, customer: e.target.value})}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">評分 (1-5)</label>
-                                  <select 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]"
-                                    value={newFeedback.rating}
-                                    onChange={(e) => setNewFeedback({...newFeedback, rating: Number(e.target.value)})}
-                                  >
-                                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} 星</option>)}
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">評論內容</label>
-                                  <textarea 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309] h-24"
-                                    value={newFeedback.comment}
-                                    onChange={(e) => setNewFeedback({...newFeedback, comment: e.target.value})}
-                                  ></textarea>
-                              </div>
-                              <button 
-                                onClick={handleAddFeedback} 
-                                disabled={isAnalyzingFeedback}
-                                className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e] flex items-center justify-center gap-2"
-                              >
-                                  {isAnalyzingFeedback ? (
-                                      <>
-                                          <Loader2 className="animate-spin" size={20} />
-                                          AI 分析情緒與建議中...
-                                      </>
-                                  ) : "新增並分析"}
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
-      );
-  }
-
   // -- MANAGER VIEW: KPI --
   if (!isGuest && activeTab === 'kpi') {
       return (
@@ -1220,7 +1248,25 @@ export const Tools: React.FC<ToolsProps> = ({
               </div>
               
               {goals && goals.length === 0 ? (
-                  <EmptyState message="尚未設定年度目標" onClick={() => setShowAddGoal(true)} buttonText="設定目標" />
+                  <SkeletonOverlay title="年度目標範例" onClick={() => setShowAddGoal(true)} buttonText="設定目標">
+                       <div className="space-y-6">
+                          <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 shadow-sm">
+                              <div className="flex justify-between items-end mb-4">
+                                  <div>
+                                      <h3 className="font-bold text-stone-700 text-lg">年度營收目標</h3>
+                                      <p className="text-stone-400 text-sm">Target: 1200 萬</p>
+                                  </div>
+                                  <div className="text-right">
+                                      <div className="text-3xl font-bold text-[#b45309]">850 <span className="text-sm font-normal text-stone-500">萬</span></div>
+                                      <div className="text-sm text-[#b45309]">70%</div>
+                                  </div>
+                              </div>
+                              <div className="h-3 bg-stone-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-orange-400 to-[#b45309]" style={{ width: `70%` }}></div>
+                              </div>
+                          </div>
+                      </div>
+                  </SkeletonOverlay>
               ) : (
                   <div className="space-y-6">
                       {goals?.map(goal => {

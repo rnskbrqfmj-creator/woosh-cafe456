@@ -17,12 +17,20 @@ const App: React.FC = () => {
   // Orders placed by guests, visible in Manager Revenue
   const [orders, setOrders] = useState<Order[]>([]);
   
-  // Inventory state (Keep some starter items so it's not totally broken, but user can edit)
+  // Inventory state - Enhanced with more realistic items
   const [inventory, setInventory] = useState<InventoryItem[]>([
-      { id: '1', name: "燕麥拿鐵 (Oatside)", quantity: 2, unit: "瓶", status: "Critical", lastUpdated: "2023-10-24" },
-      { id: '2', name: "耶加雪菲 咖啡豆", quantity: 0.5, unit: "kg", status: "Warning", lastUpdated: "2023-10-23" },
+      { id: '1', name: "Oatside 燕麥奶", quantity: 2, unit: "瓶", status: "Critical", lastUpdated: "2023-10-24" },
+      { id: '2', name: "耶加雪菲 (淺焙豆)", quantity: 0.5, unit: "kg", status: "Warning", lastUpdated: "2023-10-23" },
       { id: '3', name: "外帶紙杯 (12oz)", quantity: 1, unit: "條", status: "Critical", lastUpdated: "2023-10-24" },
-      { id: '4', name: "光泉鮮乳", quantity: 12, unit: "瓶", status: "Normal", lastUpdated: "2023-10-24" },
+      { id: '4', name: "光泉鮮乳 (業務用)", quantity: 12, unit: "瓶", status: "Normal", lastUpdated: "2023-10-24" },
+      { id: '5', name: "義式濃縮配方豆", quantity: 5, unit: "kg", status: "Normal", lastUpdated: "2023-10-20" },
+      { id: '6', name: "MONIN 香草糖漿", quantity: 1, unit: "瓶", status: "Warning", lastUpdated: "2023-10-21" },
+      { id: '7', name: "日本昭和麵粉", quantity: 10, unit: "kg", status: "Normal", lastUpdated: "2023-10-18" },
+      { id: '8', name: "洗選蛋 (紅殼)", quantity: 4, unit: "盒", status: "Normal", lastUpdated: "2023-10-24" },
+      { id: '9', name: "靜岡抹茶粉", quantity: 0.2, unit: "kg", status: "Critical", lastUpdated: "2023-10-20" },
+      { id: '10', name: "法國總統牌奶油", quantity: 8, unit: "條", status: "Normal", lastUpdated: "2023-10-22" },
+      { id: '11', name: "培根 (切片)", quantity: 3, unit: "包", status: "Normal", lastUpdated: "2023-10-23" },
+      { id: '12', name: "冷凍藍莓", quantity: 2, unit: "kg", status: "Warning", lastUpdated: "2023-10-15" },
   ]);
 
   // Social Media State - Cleared

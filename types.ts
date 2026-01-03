@@ -66,7 +66,8 @@ export interface FeedbackItem {
   rating: number;
   comment: string;
   date: string;
-  sentiment?: 'Positive' | 'Neutral' | 'Negative'; // AI analyzed
+  positivePoints?: string[]; // AI extracted pros
+  negativePoints?: string[]; // AI extracted cons
   advice?: string; // AI analyzed advice for the owner
 }
 
