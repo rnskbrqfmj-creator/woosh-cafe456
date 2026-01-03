@@ -9,7 +9,7 @@ import {
     Package, TrendingUp, AlertCircle, DollarSign, Leaf, Users, 
     Cloud, CloudRain, CloudSun, Upload, Download, Plus, Trash2, ShoppingCart, CheckCircle, Heart,
     Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send, RefreshCw, X, Loader2,
-    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown, Sparkles, History
+    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown, Sparkles, History, Play
 } from './icons';
 import { GoogleGenAI } from "@google/genai";
 
@@ -34,7 +34,6 @@ interface ToolsProps {
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 800 600'%3E%3Crect fill='%23f5f5f4' width='800' height='600'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16' fill='%23a8a29e'%3E%E5%9C%96%E7%89%87%E7%94%9F%E6%88%90%E5%A4%B1%E6%95%88%3C/text%3E%3C/svg%3E";
 
 // WMO Weather Codes Interpretation
 const getWeatherDesc = (code: number): { desc: string; advice: string } => {
@@ -188,7 +187,6 @@ export const Tools: React.FC<ToolsProps> = ({
     setIsGeneratingProduct(true);
 
     let recipe = "";
-    let imageUrl = "";
 
     try {
         if (!process.env.API_KEY) {
@@ -199,7 +197,7 @@ export const Tools: React.FC<ToolsProps> = ({
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // 1. Generate Recipe (Generally faster and more reliable)
+        // 1. Generate Recipe
         try {
             const recipePrompt = `Create a short, appealing recipe for a cafe item named "${newIdea.name}". Keep it concise: Ingredients list and 3 simple steps. Notes: ${newIdea.notes}`;
             const recipeResp = await ai.models.generateContent({
@@ -211,38 +209,15 @@ export const Tools: React.FC<ToolsProps> = ({
             console.error("Recipe generation failed", textError);
             recipe = "食譜生成失敗";
         }
-
-        // 2. Generate Image (Heavier, might timeout on Vercel or be blocked)
-        try {
-            const imagePrompt = `A delicious food photo of ${newIdea.name}`;
-            const imageResp = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [{ text: imagePrompt }] },
-                config: {
-                    imageConfig: { aspectRatio: "1:1" }
-                }
-            });
-            
-            // Extract image
-            for (const part of imageResp.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-                    break;
-                }
-            }
-        } catch (imageError) {
-            console.error("Image generation failed", imageError);
-            // Will use empty string, forcing placeholder
-        }
         
-        // Save result
+        // Save result (No image)
         setIdeas?.(prev => [{ 
             id: Date.now().toString(), 
             name: newIdea.name, 
             stage: 'Idea', 
             notes: newIdea.notes,
             recipe: recipe,
-            imageUrl: imageUrl // If empty, card shows placeholder
+            imageUrl: "" 
         }, ...prev]);
 
         setNewIdea({ name: '', notes: '' });
@@ -1173,6 +1148,18 @@ export const Tools: React.FC<ToolsProps> = ({
           return 'bg-green-100 text-green-800 border-green-200';
       };
 
+      const handleMoveStage = (id: string, nextStage: 'Idea' | 'Testing' | 'Launch') => {
+          setIdeas?.(prev => prev.map(idea => 
+              idea.id === id ? { ...idea, stage: nextStage } : idea
+          ));
+      };
+
+      const handleDeleteIdea = (id: string) => {
+          if (window.confirm('確定要刪除這個想法嗎？')) {
+              setIdeas?.(prev => prev.filter(idea => idea.id !== id));
+          }
+      };
+
       return (
           <div className="p-4 md:p-6 space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1202,33 +1189,76 @@ export const Tools: React.FC<ToolsProps> = ({
               ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto pb-4">
                       {['Idea', 'Testing', 'Launch'].map(stage => (
-                          <div key={stage} className="bg-stone-100/50 p-4 rounded-2xl min-w-[250px]">
-                              <h3 className="font-bold text-stone-600 mb-4 px-2">{stage === 'Idea' ? '靈感發想' : stage === 'Testing' ? '試做調整' : '準備上市'}</h3>
-                              <div className="space-y-3">
+                          <div key={stage} className="bg-stone-100/50 p-4 rounded-2xl min-w-[250px] flex flex-col h-full">
+                              <h3 className="font-bold text-stone-600 mb-4 px-2 flex items-center justify-between">
+                                  {stage === 'Idea' ? '靈感發想' : stage === 'Testing' ? '試做調整' : '準備上市'}
+                                  <span className="text-xs bg-stone-200 text-stone-500 px-2 py-0.5 rounded-full">
+                                      {ideas?.filter(i => i.stage === stage).length}
+                                  </span>
+                              </h3>
+                              <div className="space-y-3 flex-1">
                                   {ideas?.filter(i => i.stage === stage).map(idea => (
-                                      <div key={idea.id} className="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                                          {/* Image with fallback */}
-                                          {idea.imageUrl ? (
-                                              <img src={idea.imageUrl} alt={idea.name} className="w-full h-32 object-cover rounded-lg mb-3" />
-                                          ) : (
-                                              <div className="w-full h-32 bg-stone-100 rounded-lg mb-3 flex items-center justify-center">
-                                                   <img src={PLACEHOLDER_IMAGE} alt="Placeholder" className="w-full h-full object-cover opacity-50"/>
-                                              </div>
+                                      <div key={idea.id} className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 flex flex-col gap-3 group">
+                                          {/* Image with fallback - Keeping text only logic from previous turn */}
+                                          {idea.imageUrl && (
+                                              <img src={idea.imageUrl} alt={idea.name} className="w-full h-32 object-cover rounded-lg mb-1" />
                                           )}
                                           
-                                          <div className="font-bold text-stone-800">{idea.name}</div>
-                                          <p className="text-xs text-stone-500 mt-2">{idea.notes}</p>
+                                          <div>
+                                              <div className="font-bold text-stone-800 text-lg">{idea.name}</div>
+                                              <p className="text-sm text-stone-500 mt-1 line-clamp-2">{idea.notes}</p>
+                                          </div>
+
                                           {idea.recipe && (
-                                              <details className="mt-2 text-xs text-stone-500">
-                                                  <summary className="cursor-pointer hover:text-[#b45309]">AI 食譜建議</summary>
-                                                  <div className="p-2 bg-stone-50 rounded mt-1 whitespace-pre-wrap">{idea.recipe}</div>
+                                              <details className="text-xs text-stone-500 bg-stone-50 p-2 rounded-lg">
+                                                  <summary className="cursor-pointer font-bold text-[#b45309] hover:underline mb-1">AI 食譜建議</summary>
+                                                  <div className="whitespace-pre-wrap leading-relaxed">{idea.recipe}</div>
                                               </details>
                                           )}
-                                          <div className={`text-[10px] px-2 py-0.5 rounded inline-block mt-3 border ${getStageColor(idea.stage)}`}>
-                                              {idea.stage}
+                                          
+                                          <div className="mt-auto pt-3 border-t border-stone-100 flex items-center gap-2">
+                                              <button 
+                                                onClick={() => handleDeleteIdea(idea.id)}
+                                                className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="刪除"
+                                              >
+                                                  <Trash2 size={16} />
+                                              </button>
+                                              
+                                              {stage === 'Idea' && (
+                                                  <button 
+                                                      onClick={() => handleMoveStage(idea.id, 'Testing')}
+                                                      className="flex-1 bg-blue-50 text-blue-600 text-xs py-2 rounded-lg font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                                                  >
+                                                      進入試做 <Play size={10} className="fill-current" />
+                                                  </button>
+                                              )}
+                                              
+                                              {stage === 'Testing' && (
+                                                  <button 
+                                                      onClick={() => handleMoveStage(idea.id, 'Launch')}
+                                                      className="flex-1 bg-green-50 text-green-600 text-xs py-2 rounded-lg font-bold hover:bg-green-100 transition-colors flex items-center justify-center gap-1"
+                                                  >
+                                                      確認上市 <CheckCircle size={12} />
+                                                  </button>
+                                              )}
+
+                                              {stage === 'Launch' && (
+                                                  <button 
+                                                      onClick={() => handleDeleteIdea(idea.id)}
+                                                      className="flex-1 bg-stone-100 text-stone-500 text-xs py-2 rounded-lg font-bold hover:bg-stone-200 transition-colors flex items-center justify-center gap-1"
+                                                  >
+                                                      完成歸檔 <Package size={12} />
+                                                  </button>
+                                              )}
                                           </div>
                                       </div>
                                   ))}
+                                  {ideas?.filter(i => i.stage === stage).length === 0 && (
+                                      <div className="text-center py-8 text-stone-300 border-2 border-dashed border-stone-200 rounded-xl">
+                                          <div className="text-xs">尚無項目</div>
+                                      </div>
+                                  )}
                               </div>
                           </div>
                       ))}
@@ -1269,268 +1299,10 @@ export const Tools: React.FC<ToolsProps> = ({
                                   {isGeneratingProduct ? (
                                       <>
                                           <Loader2 className="animate-spin" size={20} />
-                                          AI 生成食譜與圖片中...
+                                          AI 生成食譜中...
                                       </>
                                   ) : "建立並生成內容"}
                               </button>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
-      );
-  }
-
-  // -- MANAGER VIEW: FEEDBACK --
-  if (!isGuest && activeTab === 'feedback') {
-      return (
-          <div className="p-4 md:p-6 space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
-                  <div className="flex flex-wrap gap-2">
-                       <button 
-                        onClick={() => setShowAddFeedback(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
-                       >
-                           <Plus size={16} /> 手動新增評論 (AI 分析)
-                       </button>
-                       <a 
-                        href="https://www.google.com/maps/search/?api=1&query=無所時時+Woosh+Cafe+宜蘭" 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 text-sm shadow-sm"
-                       >
-                           <MapPin size={16} /> 前往 Google Maps
-                       </a>
-                  </div>
-              </div>
-              
-              {feedbacks && feedbacks.length === 0 ? (
-                  <EmptyState message="目前沒有評論資料，請手動新增評論讓 AI 幫您分析正負面評價" onClick={() => setShowAddFeedback(true)} buttonText="新增評論" />
-              ) : (
-                  <div className="grid grid-cols-1 gap-6">
-                      <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10">
-                          <h3 className="font-bold text-stone-700 mb-4">顧客留言與 AI 觀點提取</h3>
-                          <div className="space-y-6">
-                              {feedbacks?.map(fb => (
-                                  <div key={fb.id} className="border-b border-stone-100 pb-6 last:border-0">
-                                      <div className="flex justify-between items-start mb-2">
-                                          <div className="flex items-center gap-2">
-                                              <span className="font-bold text-stone-800 text-lg">{fb.customer}</span>
-                                          </div>
-                                          <div className="flex text-yellow-400">
-                                              {[...Array(fb.rating)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
-                                          </div>
-                                      </div>
-                                      <p className="text-stone-600 mb-3 bg-stone-50 p-3 rounded-lg italic">"{fb.comment}"</p>
-                                      
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                         {/* Pros */}
-                                         <div className="space-y-1">
-                                            <h4 className="text-xs font-bold text-green-700 flex items-center gap-1 uppercase"><ThumbsUp size={12}/> 正面評價</h4>
-                                            {fb.positivePoints && fb.positivePoints.length > 0 ? (
-                                                <ul className="list-none space-y-1">
-                                                    {fb.positivePoints.map((point, i) => (
-                                                        <li key={i} className="text-sm text-stone-600 flex items-start gap-2">
-                                                            <span className="text-green-500 mt-1">✓</span> {point}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : <span className="text-xs text-stone-400">無明顯正面評價</span>}
-                                         </div>
-
-                                         {/* Cons */}
-                                         <div className="space-y-1">
-                                            <h4 className="text-xs font-bold text-red-700 flex items-center gap-1 uppercase"><ThumbsDown size={12}/> 待改進</h4>
-                                            {fb.negativePoints && fb.negativePoints.length > 0 ? (
-                                                <ul className="list-none space-y-1">
-                                                    {fb.negativePoints.map((point, i) => (
-                                                        <li key={i} className="text-sm text-stone-600 flex items-start gap-2">
-                                                            <span className="text-red-500 mt-1">✗</span> {point}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : <span className="text-xs text-stone-400">無明顯負面評價</span>}
-                                         </div>
-                                      </div>
-
-                                      {fb.advice && (
-                                          <div className="mt-4 bg-[#ecfccb]/30 border border-[#ecfccb] p-3 rounded-lg text-sm text-[#3f6212] flex items-start gap-2">
-                                              <span className="font-bold shrink-0">💡 AI 建議:</span> {fb.advice}
-                                          </div>
-                                      )}
-                                      <div className="text-xs text-stone-400 mt-2 text-right">{fb.date}</div>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-                  </div>
-              )}
-
-              {/* Add Feedback Modal */}
-              {showAddFeedback && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                          <button onClick={() => setShowAddFeedback(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
-                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">手動新增評論</h3>
-                          <div className="space-y-4">
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">顧客姓名</label>
-                                  <input 
-                                    type="text" 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                    value={newFeedback.customer}
-                                    onChange={(e) => setNewFeedback({...newFeedback, customer: e.target.value})}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">評分 (1-5)</label>
-                                  <select 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]"
-                                    value={newFeedback.rating}
-                                    onChange={(e) => setNewFeedback({...newFeedback, rating: Number(e.target.value)})}
-                                  >
-                                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} 星</option>)}
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">評論內容</label>
-                                  <textarea 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309] h-24"
-                                    value={newFeedback.comment}
-                                    onChange={(e) => setNewFeedback({...newFeedback, comment: e.target.value})}
-                                  ></textarea>
-                              </div>
-                              <button 
-                                onClick={handleAddFeedback} 
-                                disabled={isAnalyzingFeedback}
-                                className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e] flex items-center justify-center gap-2"
-                              >
-                                  {isAnalyzingFeedback ? (
-                                      <>
-                                          <Loader2 className="animate-spin" size={20} />
-                                          AI 分析觀點中...
-                                      </>
-                                  ) : "新增並分析"}
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
-      );
-  }
-
-  // -- MANAGER VIEW: KPI --
-  if (!isGuest && activeTab === 'kpi') {
-      return (
-          <div className="p-4 md:p-6 space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><Target /> 年度目標追蹤</h2>
-                  <button 
-                    onClick={() => setShowAddGoal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
-                  >
-                      <Plus size={16} /> 設定新目標
-                  </button>
-              </div>
-              
-              {goals && goals.length === 0 ? (
-                  <SkeletonOverlay title="年度目標範例" onClick={() => setShowAddGoal(true)} buttonText="設定目標">
-                       <div className="space-y-6">
-                          <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 shadow-sm">
-                              <div className="flex justify-between items-end mb-4">
-                                  <div>
-                                      <h3 className="font-bold text-stone-700 text-lg">年度營收目標</h3>
-                                      <p className="text-stone-400 text-sm">Target: 1200 萬</p>
-                                  </div>
-                                  <div className="text-right">
-                                      <div className="text-3xl font-bold text-[#b45309]">850 <span className="text-sm font-normal text-stone-500">萬</span></div>
-                                      <div className="text-sm text-[#b45309]">70%</div>
-                                  </div>
-                              </div>
-                              <div className="h-3 bg-stone-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-orange-400 to-[#b45309]" style={{ width: `70%` }}></div>
-                              </div>
-                          </div>
-                      </div>
-                  </SkeletonOverlay>
-              ) : (
-                  <div className="space-y-6">
-                      {goals?.map(goal => {
-                          const percent = Math.min(100, Math.round((goal.current / goal.target) * 100));
-                          return (
-                              <div key={goal.id} className="bg-white p-6 rounded-2xl border border-[#78350f]/10 shadow-sm">
-                                  <div className="flex justify-between items-end mb-4">
-                                      <div>
-                                          <h3 className="font-bold text-stone-700 text-lg">{goal.title}</h3>
-                                          <p className="text-stone-400 text-sm">Target: {goal.target} {goal.unit}</p>
-                                      </div>
-                                      <div className="text-right">
-                                          <div className="text-3xl font-bold text-[#b45309]">{goal.current} <span className="text-sm font-normal text-stone-500">{goal.unit}</span></div>
-                                          <div className="text-sm text-[#b45309]">{percent}%</div>
-                                      </div>
-                                  </div>
-                                  <div className="h-3 bg-stone-100 rounded-full overflow-hidden">
-                                      <div 
-                                          className="h-full bg-gradient-to-r from-orange-400 to-[#b45309] transition-all duration-1000 ease-out"
-                                          style={{ width: `${percent}%` }}
-                                      ></div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                  </div>
-              )}
-
-               {/* Add Goal Modal */}
-               {showAddGoal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                          <button onClick={() => setShowAddGoal(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
-                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">設定年度目標</h3>
-                          <div className="space-y-4">
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">目標項目</label>
-                                  <input 
-                                    type="text" 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                    value={newGoal.title}
-                                    placeholder="例如：會員成長數"
-                                    onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
-                                  />
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                      <label className="block text-sm font-medium text-stone-700 mb-1">目標數值</label>
-                                      <input 
-                                        type="number" 
-                                        className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                        value={newGoal.target}
-                                        onChange={(e) => setNewGoal({...newGoal, target: e.target.value})}
-                                      />
-                                  </div>
-                                  <div>
-                                      <label className="block text-sm font-medium text-stone-700 mb-1">當前進度</label>
-                                      <input 
-                                        type="number" 
-                                        className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                        value={newGoal.current}
-                                        onChange={(e) => setNewGoal({...newGoal, current: e.target.value})}
-                                      />
-                                  </div>
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-stone-700 mb-1">單位</label>
-                                  <input 
-                                    type="text" 
-                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
-                                    value={newGoal.unit}
-                                    placeholder="例如：人、萬元、則"
-                                    onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
-                                  />
-                              </div>
-                              <button onClick={handleAddGoal} className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e]">建立目標</button>
                           </div>
                       </div>
                   </div>
