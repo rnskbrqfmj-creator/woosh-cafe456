@@ -9,7 +9,7 @@ import {
     Package, TrendingUp, AlertCircle, DollarSign, Leaf, Users, 
     Cloud, CloudRain, CloudSun, Upload, Download, Plus, Trash2, ShoppingCart, CheckCircle, Heart,
     Coffee, Camera, Utensils, MessageSquare, Target, Facebook, Instagram, Star, Send, RefreshCw, X, Loader2,
-    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown
+    Bell, Calendar, Clock, MapPin, ThumbsUp, ThumbsDown, Sparkles
 } from './icons';
 import { GoogleGenAI } from "@google/genai";
 
@@ -1066,10 +1066,18 @@ export const Tools: React.FC<ToolsProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Draft Area */}
                   <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10 space-y-4">
-                      <h3 className="font-bold text-stone-700">靈感草稿區</h3>
+                      <div className="flex justify-between items-center">
+                          <h3 className="font-bold text-stone-700">靈感草稿區</h3>
+                          <button 
+                            onClick={() => setSocialDraft("推廣燕麥奶拿鐵，強調健康與口感滑順，適合乳糖不耐症")}
+                            className="text-xs text-[#b45309] hover:underline flex items-center gap-1"
+                          >
+                              <Sparkles size={12}/> 帶入範例
+                          </button>
+                      </div>
                       <textarea 
                           className="w-full h-32 p-3 border rounded-xl focus:outline-none focus:border-[#b45309]"
-                          placeholder="輸入活動想法，讓 AI 幫你潤飾..."
+                          placeholder="輸入活動想法，例如：新品上市、節日促銷..."
                           value={socialDraft}
                           onChange={(e) => setSocialDraft(e.target.value)}
                       ></textarea>
@@ -1224,6 +1232,146 @@ export const Tools: React.FC<ToolsProps> = ({
                                           AI 生成食譜與圖片中...
                                       </>
                                   ) : "建立並生成內容"}
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              )}
+          </div>
+      );
+  }
+
+  // -- MANAGER VIEW: FEEDBACK --
+  if (!isGuest && activeTab === 'feedback') {
+      return (
+          <div className="p-4 md:p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <h2 className="text-2xl font-bold text-[#78350f] flex items-center gap-2"><MessageSquare /> 評論分析</h2>
+                  <div className="flex flex-wrap gap-2">
+                       <button 
+                        onClick={() => setShowAddFeedback(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] text-sm"
+                       >
+                           <Plus size={16} /> 手動新增評論 (AI 分析)
+                       </button>
+                       <a 
+                        href="https://www.google.com/maps/search/?api=1&query=無所時時+Woosh+Cafe+宜蘭" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 text-sm shadow-sm"
+                       >
+                           <MapPin size={16} /> 前往 Google Maps
+                       </a>
+                  </div>
+              </div>
+              
+              {feedbacks && feedbacks.length === 0 ? (
+                  <EmptyState message="目前沒有評論資料，請手動新增評論讓 AI 幫您分析正負面評價" onClick={() => setShowAddFeedback(true)} buttonText="新增評論" />
+              ) : (
+                  <div className="grid grid-cols-1 gap-6">
+                      <div className="bg-white p-6 rounded-2xl border border-[#78350f]/10">
+                          <h3 className="font-bold text-stone-700 mb-4">顧客留言與 AI 觀點提取</h3>
+                          <div className="space-y-6">
+                              {feedbacks?.map(fb => (
+                                  <div key={fb.id} className="border-b border-stone-100 pb-6 last:border-0">
+                                      <div className="flex justify-between items-start mb-2">
+                                          <div className="flex items-center gap-2">
+                                              <span className="font-bold text-stone-800 text-lg">{fb.customer}</span>
+                                          </div>
+                                          <div className="flex text-yellow-400">
+                                              {[...Array(fb.rating)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
+                                          </div>
+                                      </div>
+                                      <p className="text-stone-600 mb-3 bg-stone-50 p-3 rounded-lg italic">"{fb.comment}"</p>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         {/* Pros */}
+                                         <div className="space-y-1">
+                                            <h4 className="text-xs font-bold text-green-700 flex items-center gap-1 uppercase"><ThumbsUp size={12}/> 正面評價</h4>
+                                            {fb.positivePoints && fb.positivePoints.length > 0 ? (
+                                                <ul className="list-none space-y-1">
+                                                    {fb.positivePoints.map((point, i) => (
+                                                        <li key={i} className="text-sm text-stone-600 flex items-start gap-2">
+                                                            <span className="text-green-500 mt-1">✓</span> {point}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : <span className="text-xs text-stone-400">無明顯正面評價</span>}
+                                         </div>
+
+                                         {/* Cons */}
+                                         <div className="space-y-1">
+                                            <h4 className="text-xs font-bold text-red-700 flex items-center gap-1 uppercase"><ThumbsDown size={12}/> 待改進</h4>
+                                            {fb.negativePoints && fb.negativePoints.length > 0 ? (
+                                                <ul className="list-none space-y-1">
+                                                    {fb.negativePoints.map((point, i) => (
+                                                        <li key={i} className="text-sm text-stone-600 flex items-start gap-2">
+                                                            <span className="text-red-500 mt-1">✗</span> {point}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : <span className="text-xs text-stone-400">無明顯負面評價</span>}
+                                         </div>
+                                      </div>
+
+                                      {fb.advice && (
+                                          <div className="mt-4 bg-[#ecfccb]/30 border border-[#ecfccb] p-3 rounded-lg text-sm text-[#3f6212] flex items-start gap-2">
+                                              <span className="font-bold shrink-0">💡 AI 建議:</span> {fb.advice}
+                                          </div>
+                                      )}
+                                      <div className="text-xs text-stone-400 mt-2 text-right">{fb.date}</div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* Add Feedback Modal */}
+              {showAddFeedback && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                          <button onClick={() => setShowAddFeedback(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><X size={20} /></button>
+                          <h3 className="text-xl font-bold mb-4 text-[#78350f]">手動新增評論</h3>
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">顧客姓名</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]" 
+                                    value={newFeedback.customer}
+                                    onChange={(e) => setNewFeedback({...newFeedback, customer: e.target.value})}
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">評分 (1-5)</label>
+                                  <select 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309]"
+                                    value={newFeedback.rating}
+                                    onChange={(e) => setNewFeedback({...newFeedback, rating: Number(e.target.value)})}
+                                  >
+                                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} 星</option>)}
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-medium text-stone-700 mb-1">評論內容</label>
+                                  <textarea 
+                                    className="w-full border rounded-lg p-2 focus:outline-none focus:border-[#b45309] h-24"
+                                    value={newFeedback.comment}
+                                    onChange={(e) => setNewFeedback({...newFeedback, comment: e.target.value})}
+                                  ></textarea>
+                              </div>
+                              <button 
+                                onClick={handleAddFeedback} 
+                                disabled={isAnalyzingFeedback}
+                                className="w-full bg-[#b45309] text-white py-3 rounded-xl font-bold hover:bg-[#92400e] flex items-center justify-center gap-2"
+                              >
+                                  {isAnalyzingFeedback ? (
+                                      <>
+                                          <Loader2 className="animate-spin" size={20} />
+                                          AI 分析觀點中...
+                                      </>
+                                  ) : "新增並分析"}
                               </button>
                           </div>
                       </div>

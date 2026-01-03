@@ -33,19 +33,19 @@ const App: React.FC = () => {
       { id: '12', name: "冷凍藍莓", quantity: 2, unit: "kg", status: "Warning", lastUpdated: "2023-10-15" },
   ]);
 
-  // Social Media State - Cleared
+  // Social Media State
   const [posts, setPosts] = useState<SocialPost[]>([]);
 
-  // Product Dev State - Cleared
+  // Product Dev State
   const [ideas, setIdeas] = useState<ProductIdea[]>([]);
 
   // Feedback State - Cleared
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
 
-  // KPI State - Cleared
+  // KPI State
   const [goals, setGoals] = useState<Goal[]>([]);
 
-  // ESG State - New
+  // ESG State
   const [esgItems, setEsgItems] = useState<ESGItem[]>([]);
 
   const allTabs = [
